@@ -233,11 +233,19 @@ async function adminDashboard(){
   const lrows=await withPhotos(lost), frows=await withPhotos(found);
   app.innerHTML=`${header()}<main class="wrap"><section class="hero admin-hero"><span class="badge light">MANAGER ONLY</span><h1>Admin Control Center</h1><p>Review claims, manage live reports and complete verified returns.</p></section><div class="stats"><div class="stat"><b>${crows.filter(x=>x.status==='PENDING').length}</b><span>Pending claims</span></div><div class="stat"><b>${frows.length}</b><span>Live found</span></div><div class="stat"><b>${lrows.length}</b><span>Active lost reports</span></div></div>
   <section><div class="section-head"><h2>Claim approvals</h2></div><div class="grid">${crows.map(c=>adminClaim(c)).join('')||'<div class="card center">No claims.</div>'}</div></section>
-  <section><div class="section-head"><h2>Live found reports</h2></div><div class="grid">${frows.map(f=>`<article class="card"><img class="item-photo" src="${img(f._photo)}"><h3>${esc(f.title)}</h3><p class="muted">${esc(f.category)} • ${esc(f.found_place)}</p><p class="small">Finder contact: ${esc(f.finder_contact||'—')}</p></article>`).join('')||'<div class="card center">No live found reports.</div>'}</div></section></main>`;
+  <section><div class="section-head"><h2>Live found reports</h2></div><div class="grid">${frows.map(f=>`<article class="card"><img class="item-photo" src="${img(f._photo)}"><h3>${esc(f.title)}</h3><p class="muted">${esc(f.category)} • ${esc(f.found_place)}</p><p class="small">Finder contact: ${esc(f.finder_contact||'—')}</p><button class="btn danger wide" onclick="removeFoundItem('${f.id}')">Remove from Live</button></article>`).join('')||'<div class="card center">No live found reports.</div>'}</div></section></main>`;
 }
 function adminClaim(c){
   const pending=c.status==='PENDING', approved=c.status==='APPROVED';
   return `<article class="card"><div class="line"><h3>${esc(c.lost_items?.title||'Item')}</h3><span class="badge ${pending?'pending':approved?'returned':'rejected'}">${esc(c.status)}</span></div><div class="photos"><figure><img src="${img(c._lost)}"><figcaption>LOST</figcaption></figure><figure><img src="${img(c._found)}"><figcaption>FOUND</figcaption></figure></div><p class="small">Lost place: ${esc(c.lost_items?.lost_place||'—')}<br>Found place: ${esc(c.found_items?.found_place||'—')}<br>Finder: ${esc(c.found_items?.finder_contact||'—')}</p>${pending?`<div class="actions"><button class="btn success" onclick="reviewClaim('${c.id}','APPROVED')">Approve Claim</button><button class="btn danger" onclick="reviewClaim('${c.id}','REJECTED')">Reject</button></div>`:''}${approved?`<div class="notice">Student has approval. Complete the physical handover, then click <b>Mark Returned & Remove</b>.</div><button class="btn danger wide" onclick="returnItem('${c.id}')">Mark Returned & Remove</button>`:''}</article>`;
+}
+async function removeFoundItem(foundId){
+  if(profile?.role!=='manager')return toast('Manager access required');
+  if(!confirm('Remove this found item from Live Found? This will also remove any linked claim records.'))return;
+  const {error}=await sb.rpc('manager_remove_found_item',{p_found_id:foundId});
+  if(error)return toast(error.message);
+  toast('Found item removed from Live Found.');
+  render();
 }
 async function reviewClaim(id,decision){
   if(profile?.role!=='manager')return toast('Manager access required');
